@@ -192,8 +192,23 @@ namespace FolderPoll.Core
 
         private static string PrepareLaunchArgs(Poll poll, string fullPath, string nameWithExt)
         {
-            string copiedFileRef = Path.Combine(poll.NewFile.Copy.TargetFolder, nameWithExt);
-            string movedFileRef = Path.Combine(poll.NewFile.Move.TargetFolder, nameWithExt);
+            if (string.IsNullOrEmpty(poll.NewFile.Launch.Arguments))
+            {
+                return string.Empty;
+            }
+
+            string copiedFileRef = string.Empty;
+            string movedFileRef = string.Empty;
+
+            if (poll.NewFile.Copy != null && !string.IsNullOrEmpty(poll.NewFile.Copy.TargetFolder))
+            {
+                copiedFileRef = Path.Combine(poll.NewFile.Copy.TargetFolder, nameWithExt);
+            }
+            if (poll.NewFile.Move != null && !string.IsNullOrEmpty(poll.NewFile.Move.TargetFolder))
+            {
+                movedFileRef = Path.Combine(poll.NewFile.Move.TargetFolder, nameWithExt);
+            }
+             
             string nameWithoutExt = Path.GetFileName(nameWithExt);
 
             return string.Format(poll.NewFile.Launch.Arguments, fullPath, copiedFileRef, movedFileRef, nameWithExt, nameWithoutExt);

@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Xml.Serialization;
 using FolderPoll.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -9,13 +11,147 @@ namespace FolderPoll.Tests
     public class FolderPollServiceTest
     {
         [TestMethod]
-        public void OperationsWithoutImpersonationTest()
+        public void FolderPollServiceFileInitWithoutImpersonationTest()
         {
-            string[] polledFolders = { "" };
-            //var folderPoll = CreateFolderPoll()
+            string testPath = @"C:\FolderPoll";
+            string configPath = Path.Combine(testPath, "testConfig.xml");
+            string firstPollPath = Path.Combine(testPath, "FirstPoll");
+            string secondPollPath = Path.Combine(testPath, "SecondPoll");
+            string firstFilter = ".txt";
+            string secondFilter = ".xml";
+            string firstName = "firstNewFile";
+            string secondName = "secondNewFile";
+            string copyPath = Path.Combine(testPath, "PollCopy");
+            string movePath = Path.Combine(testPath, "PollMove");
+
+            if (!Directory.Exists(testPath))
+            {
+                Directory.CreateDirectory(testPath);
+            }
+            if (!Directory.Exists(firstPollPath))
+            {
+                Directory.CreateDirectory(firstPollPath);
+            }
+            if (!Directory.Exists(secondPollPath))
+            {
+                Directory.CreateDirectory(secondPollPath);
+            }
+            if (!Directory.Exists(copyPath))
+            {
+                Directory.CreateDirectory(copyPath);
+            }
+            if (!Directory.Exists(movePath))
+            {
+                Directory.CreateDirectory(movePath);
+            }
+
+            var polls = new List<Poll>
+            {
+                new Poll
+                {
+                    Impersonation = false,
+                    Domain = "domain",
+                    Username = "username",
+                    Password = "password",
+                    Folder = firstPollPath,
+                    NewFile = new NewFile
+                    {
+                        Filter = firstFilter,
+                        Copy = new NewFileCopy
+                        {
+                            TargetFolder = copyPath
+                        }
+                    }
+                },
+                new Poll
+                {
+                    Impersonation = false,
+                    Domain = "domain",
+                    Username = "username",
+                    Password = "password",
+                    Folder = secondPollPath,
+                    NewFile = new NewFile
+                    {
+                        Filter = secondFilter,
+                        Move = new NewFileMove
+                        {
+                            TargetFolder = movePath
+                        }
+                    }
+                }
+            };
+
+            var folderPollXsd = new FolderPollXsd
+            {
+                Poll = polls.ToArray()
+            };
+
+            var serializer = new XmlSerializer(typeof(FolderPollXsd));
+            TextWriter writer = new StreamWriter(configPath);
+            serializer.Serialize(writer, folderPollXsd);
+            writer.Close();
+
+            var folderPollService = new FolderPollService(configPath, true);
+            folderPollService.Run();
+
+            File.Create(Path.Combine(firstPollPath, string.Concat(firstName, firstFilter)));
+            File.Create(Path.Combine(secondPollPath, string.Concat(secondName, secondFilter)));
+
+            Assert.AreEqual(true, File.Exists(Path.Combine(copyPath, string.Concat(firstName, firstFilter))));
+            Assert.AreEqual(true, File.Exists(Path.Combine(movePath, string.Concat(secondName, secondFilter))));
         }
 
-        private FolderPollXsd CreateFolderPollXsd(string[] polledFolders, string[] copyFolders, string[] moveFolders, string[] applications, string[] filters,
+        /*
+        [TestMethod]
+        public void FolderPollServiceFileInitWithoutImpersonationTest()
+        {
+            string polledPath = @"D:\FolderPoll";
+
+            if (!Directory.Exists(polledPath))
+            {
+                Directory.CreateDirectory(polledPath);
+            }
+
+            string[] polledFolders = { polledPath };
+            string[] copyFolders = { Path.Combine(polledPath, "FolderPollCopy") };
+            string[] moveFolders = { Path.Combine(polledPath, "FolderPollMove") };
+            string[] applications = { @"D:\Windows\notepad.exe" };
+            string[] filters = { ".txt" };
+            string domain = "domain";
+            string username = "username";
+            string password = "password";
+
+            foreach (var copyFolder in copyFolders)
+            {
+                if (!Directory.Exists(copyFolder))
+                {
+                    Directory.CreateDirectory(copyFolder);
+                }
+            }
+
+            foreach (var moveFolder in moveFolders)
+            {
+                if (!Directory.Exists(moveFolder))
+                {
+                    Directory.CreateDirectory(moveFolder);
+                }
+            }
+
+            var folderPollXsd = AutoCreateFolderPollXsd(polledFolders, copyFolders, moveFolders, applications, filters,
+                false, domain, username, password);
+
+            XmlSerializer serializer = new XmlSerializer(typeof(FolderPollXsd));
+            TextWriter writer = new StreamWriter(Path.Combine(polledPath, "testConfig.xml"));
+            serializer.Serialize(writer, folderPollXsd);
+            writer.Close();
+
+            FolderPollService folderPollService = new FolderPollService(Path.Combine(polledPath, "testConfig.xml"), true);
+            folderPollService.Run();
+
+            
+        }
+
+        private FolderPollXsd AutoCreateFolderPollXsd(string[] polledFolders, string[] copyFolders, string[] moveFolders, string[] applications, string[] filters,
             bool isImpersonated, string domain = "", string username = "", string password = "")
         {
             var polls = new List<Poll>();
@@ -291,6 +427,309 @@ namespace FolderPoll.Tests
             string[] polledFolders = { @"C:\" };
             string[] copyFolders = { @"C:\" };
             string[] moveFolders = { @"C:\" };
+            string[] applications = { @"C:\Windows\notepad.exe" };
+            string[] filters = { ".txt" };
+            string domain = "domain";
+            string username = "username";
+            string password = "password";
+
+            var actualFolderPollXsd = AutoCreateFolderPollXsd(polledFolders, copyFolders, moveFolders, applications, filters,
+                true, domain, username, password);
+
+            var polls = new List<Poll>
+            {
+                new Poll
+                {
+                  Folder  =  polledFolders[0],
+                  Impersonation = true,
+                  Domain = domain,
+                  Username = username,
+                  Password = password,
+                  NewFile = new NewFile
+                  {
+                      Filter = filters[0],
+                      Copy = new NewFileCopy
+                      {
+                          TargetFolder = copyFolders[0]
+                      }
+                  }
+                },
+                new Poll
+                {
+                  Folder  =  polledFolders[0],
+                  Impersonation = true,
+                  Domain = domain,
+                  Username = username,
+                  Password = password,
+                  NewFile = new NewFile
+                  {
+                      Filter = filters[0],
+                      Copy = new NewFileCopy
+                      {
+                          TargetFolder = copyFolders[0]
+                      },
+                      Launch = new NewFileLaunch
+                      {
+                          Application = applications[0],
+                          Arguments = "{0}"
+                      }
+                  }
+                },
+                new Poll
+                {
+                  Folder  =  polledFolders[0],
+                  Impersonation = true,
+                  Domain = domain,
+                  Username = username,
+                  Password = password,
+                  NewFile = new NewFile
+                  {
+                      Filter = filters[0],
+                      Copy = new NewFileCopy
+                      {
+                          TargetFolder = copyFolders[0]
+                      },
+                      Launch = new NewFileLaunch
+                      {
+                          Application = applications[0],
+                          Arguments = "{1}"
+                      }
+                  }
+                },
+                new Poll
+                {
+                  Folder  =  polledFolders[0],
+                  Impersonation = true,
+                  Domain = domain,
+                  Username = username,
+                  Password = password,
+                  NewFile = new NewFile
+                  {
+                      Filter = filters[0],
+                      Copy = new NewFileCopy
+                      {
+                          TargetFolder = copyFolders[0]
+                      },
+                      Launch = new NewFileLaunch
+                      {
+                          Application = applications[0],
+                          Arguments = "{2}"
+                      }
+                  }
+                },
+                new Poll
+                {
+                  Folder  =  polledFolders[0],
+                  Impersonation = true,
+                  Domain = domain,
+                  Username = username,
+                  Password = password,
+                  NewFile = new NewFile
+                  {
+                      Filter = filters[0],
+                      Copy = new NewFileCopy
+                      {
+                          TargetFolder = copyFolders[0]
+                      },
+                      Launch = new NewFileLaunch
+                      {
+                          Application = applications[0],
+                          Arguments = Path.Combine(copyFolders[0], "{3}")
+                      }
+                  }
+                },
+                new Poll
+                {
+                  Folder  =  polledFolders[0],
+                  Impersonation = true,
+                  Domain = domain,
+                  Username = username,
+                  Password = password,
+                  NewFile = new NewFile
+                  {
+                      Filter = filters[0],
+                      Copy = new NewFileCopy
+                      {
+                          TargetFolder = copyFolders[0]
+                      },
+                      Launch = new NewFileLaunch
+                      {
+                          Application = applications[0],
+                          Arguments = Path.Combine(copyFolders[0], string.Concat("{4}", filters[0]))
+                      }
+                  }
+                },
+                new Poll
+                {
+                      Folder  =  polledFolders[0],
+                      Impersonation = true,
+                      Domain = domain,
+                      Username = username,
+                      Password = password,
+                      NewFile = new NewFile
+                      {
+                          Filter = filters[0],
+                          Move = new NewFileMove
+                          {
+                              TargetFolder = moveFolders[0]
+                          }
+                      }
+                },
+                new Poll
+                {
+                      Folder  =  polledFolders[0],
+                      Impersonation = true,
+                      Domain = domain,
+                      Username = username,
+                      Password = password,
+                      NewFile = new NewFile
+                      {
+                          Filter = filters[0],
+                          Move = new NewFileMove
+                          {
+                              TargetFolder = moveFolders[0]
+                          },
+                          Launch = new NewFileLaunch
+                          {
+                              Application = applications[0],
+                              Arguments = "{0}"
+                          }
+                      }
+                },
+                new Poll
+                {
+                      Folder  =  polledFolders[0],
+                      Impersonation = true,
+                      Domain = domain,
+                      Username = username,
+                      Password = password,
+                      NewFile = new NewFile
+                      {
+                          Filter = filters[0],
+                          Move = new NewFileMove
+                          {
+                              TargetFolder = moveFolders[0]
+                          },
+                          Launch = new NewFileLaunch
+                          {
+                              Application = applications[0],
+                              Arguments = "{1}"
+                          }
+                      }
+                },
+                new Poll
+                {
+                      Folder  =  polledFolders[0],
+                      Impersonation = true,
+                      Domain = domain,
+                      Username = username,
+                      Password = password,
+                      NewFile = new NewFile
+                      {
+                          Filter = filters[0],
+                          Move = new NewFileMove
+                          {
+                              TargetFolder = moveFolders[0]
+                          },
+                          Launch = new NewFileLaunch
+                          {
+                              Application = applications[0],
+                              Arguments = "{2}"
+                          }
+                      }
+                },
+                new Poll
+                {
+                      Folder  =  polledFolders[0],
+                      Impersonation = true,
+                      Domain = domain,
+                      Username = username,
+                      Password = password,
+                      NewFile = new NewFile
+                      {
+                          Filter = filters[0],
+                          Move = new NewFileMove
+                          {
+                              TargetFolder = moveFolders[0]
+                          },
+                          Launch = new NewFileLaunch
+                          {
+                              Application = applications[0],
+                              Arguments = Path.Combine(moveFolders[0], "{3}")
+                          }
+                      }
+                },
+                new Poll
+                {
+                      Folder  =  polledFolders[0],
+                      Impersonation = true,
+                      Domain = domain,
+                      Username = username,
+                      Password = password,
+                      NewFile = new NewFile
+                      {
+                          Filter = filters[0],
+                          Move = new NewFileMove
+                          {
+                              TargetFolder = moveFolders[0]
+                          },
+                          Launch = new NewFileLaunch
+                          {
+                              Application = applications[0],
+                              Arguments = Path.Combine(moveFolders[0], string.Concat("{4}", filters[0]))
+                          }
+                      }
+                }
+            };
+
+            var expectedFolderPollXsd = new FolderPollXsd
+            {
+                Poll = polls.ToArray()
+            };
+
+            Assert.AreEqual(true, FolderPollXsdComparator(actualFolderPollXsd, expectedFolderPollXsd));
+            
+            XmlSerializer serializer = new XmlSerializer(typeof(FolderPollXsd));
+            TextWriter writer = new StreamWriter(@"D:\xsd1.xml");
+            serializer.Serialize(writer, actualFolderPollXsd);
+            writer.Close();
+
+            writer = new StreamWriter(@"D:\xsd2.xml");
+            serializer.Serialize(writer, expectedFolderPollXsd);
+            writer.Close();
+
+            
         }
+
+        private bool FolderPollXsdComparator(FolderPollXsd first, FolderPollXsd second)
+        {
+            var pollsCount = 0;
+            if (first.Poll.Count() != second.Poll.Count())
+            {
+                return false;
+            }
+            else
+            {
+                pollsCount = first.Poll.Count();
+            }
+
+            for (int i = 0; i < pollsCount; i++)
+            {
+                if (first.Poll[i].Domain != second.Poll[i].Domain || first.Poll[i].Folder != second.Poll[i].Folder ||
+                    first.Poll[i].Impersonation != second.Poll[i].Impersonation || 
+                    first.Poll[i].ImpersonationSpecified != second.Poll[i].ImpersonationSpecified ||
+                    first.Poll[i].Password != second.Poll[i].Password || first.Poll[i].Username != second.Poll[i].Username ||
+                    first.Poll[i].NewFile.Copy.TargetFolder != second.Poll[i].NewFile.Copy.TargetFolder ||
+                    first.Poll[i].NewFile.Move.TargetFolder != second.Poll[i].NewFile.Move.TargetFolder ||
+                    first.Poll[i].NewFile.Filter != second.Poll[i].NewFile.Filter ||
+                    first.Poll[i].NewFile.Launch.Application != second.Poll[i].NewFile.Launch.Application ||
+                    first.Poll[i].NewFile.Launch.Arguments != second.Poll[i].NewFile.Launch.Arguments)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }*/
     }
 }
