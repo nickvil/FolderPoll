@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="FolderPoll">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Poll" minOccurs="1" maxOccurs="unbounded">
+          <xs:annotation>
+            <xs:documentation>Defines a folder to poll and the operations to perform on that folder..</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="NewFile" minOccurs="0" maxOccurs="1">
+                <xs:annotation>
+                  <xs:documentation>Operations to perform when a new file appears in the folder.  Note that the operations are performed in the order they are defined (and this order is fixed).</xs:documentation>
+                </xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Copy" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Copies the new file to a specified location.  Note, this is performed prior to the Launch operation.</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:attribute name="TargetFolder" type="xs:string" use="required" />
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Move" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Moves the new file to a specific location.  Note, this is performed prior to the Launch operation.</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:attribute name="TargetFolder" type="xs:string" use="required" />
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Launch" minOccurs="0" maxOccurs="1">
+                      <xs:annotation>
+                        <xs:documentation>Launch the specific application when the new file appears (and after any copy operation).</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:attribute name="Application" type="xs:string" use="required" />
+                        <xs:attribute name="Arguments" type="xs:string" use="optional">
+                          <xs:annotation>
+                            <xs:documentation>
+                              The command line arguments passed to the launched application. This can contain any text, if any of the following macros are used they are expanded as follows:
+                              {0} to refer to the full path of the processed file in the polled directory
+                              {1} to refer to the full path of the copied file (if the copy operation is performed)
+                              {2} to refer to the full path of the moved file (if the move operation is performed)
+                              {3} to refer to the main filename of the processed file in the polled directory excluding directory and including extension, e.g. "file.txt"
+                              {4} to refer to the main filename of the processed file in the polled directory excluding directory and excluding extension, e.g. "file"
+                              For example, the Arguments might be "{1} c:\anotherfolder\{4}.xml" which would expand to the full path of the copied file followed by a path to the anotherfolder with a filename made up of the main file name of the process file with a .xml extension
+                            </xs:documentation>
+                          </xs:annotation>
+                        </xs:attribute>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="Filter" type="xs:string" use="optional">
+                    <xs:annotation>
+                      <xs:documentation>Used to specify a filter of which files to include, for example if *.txt is included then the action is only applied to *.txt files.</xs:documentation>
+                    </xs:annotation>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="Folder" type="xs:string" use="required" />
+            <xs:attribute name="Impersonation" type="xs:boolean" use="optional">
+              <xs:annotation>
+                <xs:documentation>If impersonation is required to perform operations on the folder then set this to true and specify Username and Password.  If this attribute is not set then false is assumed.</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="Username" type="xs:string" use="optional">
+              <xs:annotation>
+                <xs:documentation>If Impersonation=true, this is the username used for impersonation.</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="Password" type="xs:string" use="optional">
+              <xs:annotation>
+                <xs:documentation>If Impersonation=true, this is the password used for impersonation.</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+            <xs:attribute name="Domain" type="xs:string" use="optional">
+              <xs:annotation>
+                <xs:documentation>If Impersonation=true, this is used to optionally specify the domain.  If this is not specified the domain "." is used.</xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

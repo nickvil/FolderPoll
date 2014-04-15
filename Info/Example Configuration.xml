@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- This simple configuration file illustrates how to configure the folder poll application to:
+ 1. Poll a specific folder 
+ 2. Perform operatiosn when a new TXT file appears in that folder
+ 3. Copy the new file to a specific folder
+ 4. Launch Notepad passing in the file path of the copied file.
+ -->
+<FolderPoll>
+  <Poll Folder="c:\foldertopoll">
+    <NewFile Filter="*.txt">
+      <Copy TargetFolder="c:\destination"/>      
+      <Launch Application="c:\windows\notepad.exe" Arguments="{1}"/>
+    </NewFile>
+  </Poll>
+</FolderPoll>
