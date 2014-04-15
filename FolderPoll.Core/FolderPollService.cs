@@ -10,7 +10,7 @@ namespace FolderPoll.Core
 
     public class FolderPollService : IFolderPollService
     {
-        private FolderPoll folderPoll;
+        private FolderPollXsd folderPoll;
 
         private readonly List<FileSystemWatcher> watchers;
 
@@ -34,18 +34,18 @@ namespace FolderPoll.Core
         {
             if (isFile)
             {
-                var ser = new XmlSerializer(typeof(FolderPoll));
+                var ser = new XmlSerializer(typeof(FolderPollXsd));
                 using (var reader = XmlReader.Create(configurationFilePathOrString))
                 {
-                    this.folderPoll = (FolderPoll)ser.Deserialize(reader);
+                    this.folderPoll = (FolderPollXsd)ser.Deserialize(reader);
                 }
             }
             else
             {
-                var ser = new XmlSerializer(typeof(FolderPoll));
+                var ser = new XmlSerializer(typeof(FolderPollXsd));
                 using (var reader = new StringReader(configurationFilePathOrString))
                 {
-                    this.folderPoll = (FolderPoll)ser.Deserialize(reader);
+                    this.folderPoll = (FolderPollXsd)ser.Deserialize(reader);
                 }
             }
         }
@@ -105,7 +105,7 @@ namespace FolderPoll.Core
 
         private static void AttachAction(Poll poll, FolderPollAction action, FileSystemWatcher watcher)
         {
-            if (poll.Impersonation)
+            if (poll.Impersonation && poll.ImpersonationSpecified)
             {
                 switch (action)
                 {
@@ -114,7 +114,7 @@ namespace FolderPoll.Core
                         {
                             using (new ImpersonatedUser(poll.Domain, poll.Username, poll.Password))
                             {
-                                CopyFile(args.FullPath, string.Format("{0}\\{1}", poll.NewFile.Copy.TargetFolder, args.Name));
+                                CopyFile(args.FullPath, Path.Combine(poll.NewFile.Copy.TargetFolder, args.Name));
                             }
                         };
                         break;
@@ -123,7 +123,7 @@ namespace FolderPoll.Core
                         {
                             using (new ImpersonatedUser(poll.Domain, poll.Username, poll.Password))
                             {
-                                MoveFile(args.FullPath, string.Format("{0}\\{1}", poll.NewFile.Move.TargetFolder, args.Name));
+                                MoveFile(args.FullPath, Path.Combine(poll.NewFile.Move.TargetFolder, args.Name));
                             }
                         };
                         break;
@@ -132,7 +132,7 @@ namespace FolderPoll.Core
                         {
                             using (new ImpersonatedUser(poll.Domain, poll.Username, poll.Password))
                             {
-                                LaunchApplication(poll.NewFile.Launch.Application, args.FullPath, poll.NewFile.Launch.Arguments);
+                                LaunchApplication(poll.NewFile.Launch.Application, PrepareLaunchArgs(poll, args.FullPath, args.Name));
                             }
                         };
                         break;
@@ -143,13 +143,13 @@ namespace FolderPoll.Core
                 switch (action)
                 {
                     case FolderPollAction.Copy:
-                        watcher.Created += (sender, args) => CopyFile(args.FullPath, string.Format("{0}\\{1}", poll.NewFile.Copy.TargetFolder, args.Name));
+                        watcher.Created += (sender, args) => CopyFile(args.FullPath, Path.Combine(poll.NewFile.Copy.TargetFolder, args.Name));
                         break;
                     case FolderPollAction.Move:
-                        watcher.Created += (sender, args) => MoveFile(args.FullPath, string.Format("{0}\\{1}", poll.NewFile.Move.TargetFolder, args.Name));
+                        watcher.Created += (sender, args) => MoveFile(args.FullPath, Path.Combine(poll.NewFile.Move.TargetFolder, args.Name));
                         break;
                     case FolderPollAction.Launch:
-                        watcher.Created += (sender, args) => LaunchApplication(poll.NewFile.Launch.Application, args.FullPath, PrepareLaunchArgs(poll, args.FullPath, args.Name));
+                        watcher.Created += (sender, args) => LaunchApplication(poll.NewFile.Launch.Application, PrepareLaunchArgs(poll, args.FullPath, args.Name));
                         break;
                 }
             }
@@ -157,14 +157,9 @@ namespace FolderPoll.Core
 
         private static void CopyFile(string filePath, string destinationPath)
         {
-            if (File.Exists(destinationPath))
-            {
-                File.Delete(destinationPath);
-            }
-
             if (File.Exists(filePath))
             {
-                File.Copy(filePath, destinationPath); 
+                File.Copy(filePath, destinationPath, true);
             }
         }
 
@@ -181,30 +176,27 @@ namespace FolderPoll.Core
             }
         }
 
-        private static void LaunchApplication(string applicationPath, string filePath, string arguments)
+        private static void LaunchApplication(string applicationPath, string arguments)
         {
-            var process = new Process();
-
-            var startInfo = new ProcessStartInfo();
-            startInfo.FileName = applicationPath;
-            startInfo.Arguments = string.Format("\"{0}\" {1}", filePath, arguments);
-            process.StartInfo = startInfo;
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = applicationPath,
+                    Arguments = arguments
+                }
+            };
 
             process.Start();
         }
 
-        private static string PrepareLaunchArgs(Poll poll, string fullPath, string name)
+        private static string PrepareLaunchArgs(Poll poll, string fullPath, string nameWithExt)
         {
-            string copiedRef = string.Concat(poll.NewFile.Copy.TargetFolder, "\\", name);
-            string movedRef = string.Concat(poll.NewFile.Move.TargetFolder, "\\", name);
-            string procName = name.Split('.')[0];
+            string copiedFileRef = Path.Combine(poll.NewFile.Copy.TargetFolder, nameWithExt);
+            string movedFileRef = Path.Combine(poll.NewFile.Move.TargetFolder, nameWithExt);
+            string nameWithoutExt = Path.GetFileName(nameWithExt);
 
-            return
-                poll.NewFile.Launch.Arguments.Replace("{0}", fullPath)
-                    .Replace("{1}", copiedRef)
-                    .Replace("{2}", movedRef)
-                    .Replace("{3}", name)
-                    .Replace("{4}", procName);
+            return string.Format(poll.NewFile.Launch.Arguments, fullPath, copiedFileRef, movedFileRef, nameWithExt, nameWithoutExt);
         }
 
         enum FolderPollAction

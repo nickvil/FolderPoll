@@ -21,7 +21,7 @@ namespace FolderPoll.Core
     [System.ComponentModel.DesignerCategoryAttribute("code")]
     [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true)]
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "", IsNullable = false)]
-    public partial class FolderPoll
+    public partial class FolderPollXsd
     {
 
         private Poll[] pollField;
@@ -105,19 +105,15 @@ namespace FolderPoll.Core
             }
         }
 
-       /* /// <remarks/>
+        /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool ImpersonationSpecified
         {
             get
             {
-                return this.impersonationFieldSpecified;
+                return !string.IsNullOrEmpty(this.Username);
             }
-            set
-            {
-                this.impersonationFieldSpecified = value;
-            }
-        }*/
+        }
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
@@ -327,7 +323,9 @@ namespace FolderPoll.Core
         }
     }
 
-   /* /// <remarks/>
+    /* 
+    //Old XML
+    /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "4.0.30319.18020")]
     [System.SerializableAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
