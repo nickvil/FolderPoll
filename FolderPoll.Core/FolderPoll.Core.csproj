@@ -39,7 +39,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FolderPoll.cs" />
+    <Compile Include="FolderPollXsd.cs" />
     <Compile Include="FolderPollService.cs" />
     <Compile Include="IFolderPollService.cs" />
     <Compile Include="ImpersonatedUser.cs" />
