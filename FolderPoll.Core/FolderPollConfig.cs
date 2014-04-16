@@ -12,6 +12,9 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+using System.Xml;
+using System.Xml.Serialization;
+
 namespace FolderPoll.Core
 {
     /// <remarks/>
@@ -21,7 +24,7 @@ namespace FolderPoll.Core
     [System.ComponentModel.DesignerCategoryAttribute("code")]
     [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true)]
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "", IsNullable = false)]
-    public partial class FolderPollXsd
+    public partial class FolderPollConfig
     {
 
         private Poll[] pollField;

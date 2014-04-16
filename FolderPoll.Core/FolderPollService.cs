@@ -10,7 +10,7 @@ namespace FolderPoll.Core
 
     public class FolderPollService : IFolderPollService
     {
-        private FolderPollXsd folderPoll;
+        private FolderPollConfig folderPoll;
 
         private readonly List<FileSystemWatcher> watchers;
 
@@ -34,18 +34,18 @@ namespace FolderPoll.Core
         {
             if (isFile)
             {
-                var ser = new XmlSerializer(typeof(FolderPollXsd));
+                var ser = new XmlSerializer(typeof(FolderPollConfig));
                 using (var reader = XmlReader.Create(configurationFilePathOrString))
                 {
-                    this.folderPoll = (FolderPollXsd)ser.Deserialize(reader);
+                    this.folderPoll = (FolderPollConfig)ser.Deserialize(reader);
                 }
             }
             else
             {
-                var ser = new XmlSerializer(typeof(FolderPollXsd));
+                var ser = new XmlSerializer(typeof(FolderPollConfig));
                 using (var reader = new StringReader(configurationFilePathOrString))
                 {
-                    this.folderPoll = (FolderPollXsd)ser.Deserialize(reader);
+                    this.folderPoll = (FolderPollConfig)ser.Deserialize(reader);
                 }
             }
         }
