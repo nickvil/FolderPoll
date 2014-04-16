@@ -36,6 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.DirectoryServices.AccountManagement" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <Choose>
@@ -52,6 +53,8 @@
   </Choose>
   <ItemGroup>
     <Compile Include="CoreTests\FolderPollServiceTest.cs" />
+    <Compile Include="Helpers\ProtectFolderHelper.cs" />
+    <Compile Include="Helpers\TestHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
