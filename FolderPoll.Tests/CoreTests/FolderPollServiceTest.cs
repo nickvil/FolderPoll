@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.DirectoryServices.AccountManagement;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Xml.Serialization;
 using FolderPoll.Core;
 using FolderPoll.Tests.CoreTests;
+using FolderPoll.Tests.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace FolderPoll.Tests
@@ -29,9 +31,14 @@ namespace FolderPoll.Tests
         private readonly List<Poll> polls = new List<Poll>();
         private readonly List<TestFile> testFiles = new List<TestFile>();
 
+        private string WithoutImpersonationMessage;
+        private string WithImpersonationMessage;
+
         [TestMethod]
         public void WithoutImpersonationTest()
         {
+            WithoutImpersonationMessage = string.Empty;
+
             this.PrepareTestEnviroment(false);  // prepare polls, creation of all test folders
 
             var folderPollConfig = new FolderPollConfig
@@ -47,35 +54,53 @@ namespace FolderPoll.Tests
             var folderPollService = new FolderPollService(xmlConfigPath, true);
             folderPollService.Run();
 
-            // Random files creation for all polls (for each pool - random from 3 to 10 files)
-            foreach (var poll in polls)
-            {
-                var filesCount = rnd.Next(3, 11);
-                for (int i = 0; i < filesCount; i++)
-                {
-                    var testFile = new TestFile();
-                    testFile.PollFolder = poll.Folder;
-                    testFile.FileName = Guid.NewGuid().ToString();
-                    testFile.FileFilter = poll.NewFile.Filter;
-
-                    if (poll.NewFile.Copy != null)
-                    {
-                        testFile.PollCopyTargetFolder = poll.NewFile.Copy.TargetFolder;
-                    }
-
-                    if (poll.NewFile.Move != null)
-                    {
-                        testFile.PollMoveTargetFolder = poll.NewFile.Move.TargetFolder;
-                    }
-
-                    testFiles.Add(testFile);
-
-                    File.Create(Path.Combine(testFile.PollFolder, testFile.FileName + testFile.FileExtension)).Dispose();
-                }
-            }
+            EmulateService(false);
 
             Thread.Sleep(7000);
 
+            FilesExistsTest();
+
+            folderPollService.Stop();
+
+            Assert.AreEqual("passed", WithoutImpersonationMessage);
+
+        }
+
+        [TestMethod]
+        public void WithImpersonationTest()
+        {
+            WithImpersonationMessage = string.Empty;
+
+            this.PrepareTestEnviroment(true);  // prepare polls, creation of all test folders
+
+            var folderPollConfig = new FolderPollConfig
+            {
+                Poll = polls.ToArray()
+            };
+
+            var serializer = new XmlSerializer(typeof(FolderPollConfig));
+            TextWriter writer = new StreamWriter(xmlConfigPath);
+            serializer.Serialize(writer, folderPollConfig);
+            writer.Close();
+
+            var folderPollService = new FolderPollService(xmlConfigPath, true);
+            folderPollService.Run();
+
+            EmulateService(true);
+
+            Thread.Sleep(7000);
+
+            FilesExistsTest();
+
+            folderPollService.Stop();
+
+            Assert.AreEqual("passed", WithImpersonationMessage);
+
+        }
+
+        [TestMethod]
+        public void FilesExistsTest()
+        {
             const string errorMessage = "Action: {0}. Target Folder: {1}. Not Exist File: {2}";
             const string successMessage = "{0} FILE {1} TO {2}. SUCCESS!";
             foreach (var testFile in testFiles)
@@ -104,7 +129,48 @@ namespace FolderPoll.Tests
                 }
             }
 
-            folderPollService.Stop();
+            WithoutImpersonationMessage = "passed";
+            WithImpersonationMessage = "passed";
+        }
+
+        private void EmulateService(bool isImpersonated)
+        {
+            // Random files creation for all polls (for each pool - random from 3 to 10 files)
+            foreach (var poll in polls)
+            {
+                var filesCount = rnd.Next(3, 11);
+                for (int i = 0; i < filesCount; i++)
+                {
+                    var testFile = new TestFile();
+                    testFile.PollFolder = poll.Folder;
+                    testFile.FileName = Guid.NewGuid().ToString();
+                    testFile.FileFilter = poll.NewFile.Filter;
+
+                    if (poll.NewFile.Copy != null)
+                    {
+                        testFile.PollCopyTargetFolder = poll.NewFile.Copy.TargetFolder;
+                    }
+
+                    if (poll.NewFile.Move != null)
+                    {
+                        testFile.PollMoveTargetFolder = poll.NewFile.Move.TargetFolder;
+                    }
+
+                    testFiles.Add(testFile);
+
+                    if (isImpersonated)
+                    {
+                        using (new ImpersonatedUser(poll.Domain, poll.Username, poll.Password))
+                        {
+                            File.Create(Path.Combine(testFile.PollFolder, testFile.FileName + testFile.FileExtension)).Dispose();
+                        }
+                    }
+                    else
+                    {
+                        File.Create(Path.Combine(testFile.PollFolder, testFile.FileName + testFile.FileExtension)).Dispose();
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -113,11 +179,10 @@ namespace FolderPoll.Tests
         /// <param name="impersonation">Is use impersonation or not</param>
         private void PrepareTestEnviroment(bool impersonation)
         {
-            Directory.Delete(TestFolderPath, true);
-            Directory.CreateDirectory(TestFolderPath);
-
             // fill random input folders
             var rndInputFoldersCount = rnd.Next(10, 21);    // from 10 to 20 Polls
+
+            CreateRootFolders();
 
             for (int i = 0; i < rndInputFoldersCount; i++)
             {
@@ -132,14 +197,14 @@ namespace FolderPoll.Tests
 
                 if (impersonation)
                 {
-                    poll.Domain = ".";
+                    poll.Domain = "";
                     poll.Username = this.ProtectedUser.UserName;
                     poll.Password = this.ProtectedUser.UserPassword;
-                    targetFolder = TestFolderPath;
+                    targetFolder = ProtectedTestFolderPath;
                 }
                 else
                 {
-                    targetFolder = ProtectedTestFolderPath;
+                    targetFolder = TestFolderPath;
                 }
 
                 poll.Folder = Path.Combine(targetFolder, folderName);
@@ -168,11 +233,31 @@ namespace FolderPoll.Tests
 
                 polls.Add(poll);
 
-                CreateFolder(poll, impersonation);
+                CreatePollFolders(poll, impersonation);
             }
         }
 
-        private void CreateFolder(Poll poll, bool isProtected)
+        private void CreateRootFolders()
+        {
+            if (Directory.Exists(TestFolderPath))
+            {
+                Directory.Delete(TestFolderPath, true);
+            }
+
+            Directory.CreateDirectory(TestFolderPath);
+
+            if (Directory.Exists(ProtectedTestFolderPath))
+            {
+                using (new ImpersonatedUser(string.Empty, ProtectedUser.UserName, ProtectedUser.UserPassword))
+                {
+                    Directory.Delete(ProtectedTestFolderPath, true);
+                }
+            }
+
+            Directory.CreateDirectory(ProtectedTestFolderPath);
+        }
+
+        private void CreatePollFolders(Poll poll, bool isProtected)
         {
             if (!isProtected)
             {
@@ -190,7 +275,24 @@ namespace FolderPoll.Tests
             }
             else
             {
-                
+                var context = new PrincipalContext(ContextType.Machine);
+                FolderProtectHelper.SetupSecurityGroupAndUser(context, ProtectedUser.GroupName,
+                    ProtectedUser.GroupDescription, ProtectedUser.UserName, ProtectedUser.UserPassword,
+                    ProtectedUser.UserDescription);
+
+                string currentUserName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+
+                FolderProtectHelper.ProtectFolder(poll.Folder, ProtectedUser.UserName, currentUserName, true);
+
+                if (poll.NewFile.Copy != null)
+                {
+                    FolderProtectHelper.ProtectFolder(poll.NewFile.Copy.TargetFolder, ProtectedUser.UserName, currentUserName, true);
+                }
+
+                if (poll.NewFile.Move != null)
+                {
+                    FolderProtectHelper.ProtectFolder(poll.NewFile.Move.TargetFolder, ProtectedUser.UserName, currentUserName, true);
+                }
             }
         }
     }

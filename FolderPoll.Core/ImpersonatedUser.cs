@@ -12,7 +12,7 @@ namespace FolderPoll.Core
 
         private readonly WindowsImpersonationContext impersonationContext;
 
-        public ImpersonatedUser(string user, string domain, string password)
+        public ImpersonatedUser(string domain, string user, string password)
         {
             string dom = ".";
 
